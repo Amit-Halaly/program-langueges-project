@@ -13,3 +13,7 @@ atom    : LPAREN expr RPAREN
         : INT
 
 
+if-expr : KEYWORD:if expr KEYWORD:then
+          (KEYWORD:elif expr KEYWORD:then expr)*
+          (KEYWORD:else expr)?
+
