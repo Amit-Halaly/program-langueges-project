@@ -1,10 +1,11 @@
 # IMPORTS #####
 from string_with_arrows import *
-
+import string
 
 # CONSTANTS ######
 
 DIGITS = '0123456789'
+LETTERS = string.ascii_letters
 
 # ERRORS #####
 
@@ -89,6 +90,7 @@ class Position:
 
 TT_INT = 'INT'
 TT_PLUS = 'PLUS'
+TT_BOOL = "bool"
 TT_MINUS = 'MINUS'
 TT_MUL = 'MUL'
 TT_DIV = 'DIV'
@@ -150,6 +152,8 @@ class Lexer:
                 self.advance()
             elif self.current_char in DIGITS:
                 tokens.append(self.make_number())
+            elif self.current_char in LETTERS:
+                tokens.append(self.make_bool())
             elif self.current_char == '+':
                 tokens.append(Token(TT_PLUS, pos_start=self.pos))
                 self.advance()
@@ -181,7 +185,10 @@ class Lexer:
             elif self.current_char == '>':
                 tokens.append(self.make_greater_than())
             elif self.current_char == '=':
-                tokens.append(self.make_equals())
+                tok, error = self.make_equals()
+                if error:
+                    return [], error
+                tokens.append(tok)
             else:
                 pos_start = self.pos.copy()
                 char = self.current_char
@@ -190,6 +197,18 @@ class Lexer:
 
         tokens.append(Token(TT_EOF, pos_start=self.pos))
         return tokens, None
+
+    def make_bool(self):
+        str = ''
+        pos_start = self.pos.copy()
+
+        while self.current_char is not None and self.current_char in LETTERS:
+            str += self.current_char
+            self.advance()
+
+        tok_type = TT_KEYWORD if str in KEYWORDS else TT_BOOL
+        return Token(tok_type, str, pos_start, self.pos)
+
 
     def make_number(self):
         num_str = ''
@@ -255,6 +274,13 @@ class NumberNode:
 
     def __repr__(self):
         return f'{self.tok}'
+
+
+class BoolAccessNode:
+    def __init__(self, bool_name_tok):
+        self.bool_name_tok = bool_name_tok
+        self.pos_start = self.bool_name_tok.pos_start
+        self.pos_end = self.bool_name_tok.pos_end
 
 
 class BinOpNode:
@@ -334,6 +360,11 @@ class Parser:
             res.register_advancement()
             self.advance()
             return res.success(NumberNode(tok))
+
+        elif tok.type == TT_BOOL:
+            res.register_advancement()
+            self.advance()
+            return res.success(BoolAccessNode(tok))
 
         elif tok.type == TT_LPAREN:
             res.register_advancement()
@@ -472,7 +503,7 @@ class Number:
     def dived_by(self, other):
         if isinstance(other, Number):
             if other.value == 0:
-                return None, RTError(other.pos_start, other.pos_end,'Division by zero', self.context)
+                return None, RTError(other.pos_start, other.pos_end, 'Division by zero', self.context)
 
         return Number(self.value / other.value).set_context(self.context), None
 
@@ -563,6 +594,17 @@ class Interpreter:
     def visit_NumberNode(self, node, context):
         return RTResult().success(Number(node.tok.value).set_context(context).set_pos(node.pos_start, node.pos_end))
 
+    def visit_BoolAccessNode(self, node, context):
+        res = RTResult()
+        bool_name = node.bool_name_tok.value
+        value = context.symbol_table.get(bool_name)
+
+        if not value:
+            return res.failure(RTError(node.pos_start, node.pos_end, f"'{bool_name}' is not defined", context))
+
+        value = value.copy().set_pos(node.pos_start, node.pos_end)
+        return res.success(value)
+
     def visit_BinOpNode(self, node, context):
         res = RTResult()
         left = res.register(self.visit(node.left_node, context))
@@ -626,8 +668,8 @@ class Interpreter:
 # RUN ######
 global_symbol_table = SymbolTable()
 global_symbol_table.set("NULL", Number(0))
-global_symbol_table.set("FALSE", Number(0))
-global_symbol_table.set("TRUE", Number(1))
+global_symbol_table.set("F", Number(0))
+global_symbol_table.set("T", Number(1))
 
 
 def run(fn, text):
