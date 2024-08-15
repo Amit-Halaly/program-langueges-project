@@ -1,0 +1,15 @@
+expr    : comp-expr ((KEYWORD:AND|KEYWORD:OR) comp-expr)*
+
+comp-expr   : NOT comp-expr
+            : arith-exper ((EE|LT|GT|LTE|GTE) arith-exper)*
+
+arith-exper : term ((PTUS|MINUS) term)*
+
+term    : factor ((MUL|DIV|MODULO) factor)*
+
+factor  : (PLUS|MINUS) factor
+
+atom    : LPAREN expr RPAREN
+        : INT
+
+
