@@ -188,6 +188,7 @@ class Lexer:
                 tokens.append(self.make_greater_than())
             elif self.current_char == ',':
                 tokens.append(Token(TT_COMMA, pos_start=self.pos))
+                self.advance()
             elif self.current_char == '=':
                 tok, error = self.make_equals()
                 if error:
@@ -292,6 +293,13 @@ class NumberNode:
 
     def __repr__(self):
         return f'{self.tok}'
+
+
+class VarAccessNode:
+    def __init__(self, var_name_tok):
+        self.var_name_tok = var_name_tok
+        self.pos_start = self.var_name_tok.pos_start
+        self.pos_end = self.var_name_tok.pos_end
 
 
 class BoolAccessNode:
@@ -530,6 +538,11 @@ class Parser:
             res.register_advancement()
             self.advance()
             return res.success(NumberNode(tok))
+
+        elif tok.type == TT_STR:
+            res.register_advancement()
+            self.advance()
+            return res.success(VarAccessNode(tok))
 
         elif tok.type == TT_BOOL:
             res.register_advancement()
@@ -941,6 +954,21 @@ class Interpreter:
     ###################################
     def visit_NumberNode(self, node, context):
         return RTResult().success(Number(node.tok.value).set_context(context).set_pos(node.pos_start, node.pos_end))
+
+    def visit_VarAccessNode(self, node, context):
+        res = RTResult()
+        var_name = node.var_name_tok.value
+        value = context.symbol_table.get(var_name)
+
+        if not value:
+            return res.failure(RTError(
+                node.pos_start, node.pos_end,
+                f"'{var_name}' is not defined",
+                context
+            ))
+
+        value = value.copy().set_pos(node.pos_start, node.pos_end)
+        return res.success(value)
 
     def visit_BoolAccessNode(self, node, context):
         res = RTResult()
