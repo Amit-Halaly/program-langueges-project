@@ -361,8 +361,7 @@ class Parser:
             if res.error:
                 return res
             return res.success(UnaryOpNode(tok, factor))
-        node = res.register(self.atom())
-        return res.success(node)
+        return self.atom()
 
     def term(self):
         return self.bin_op(self.factor, (TT_MUL, TT_DIV, TT_MODULO))
@@ -381,7 +380,7 @@ class Parser:
                 return res
             return res.success(UnaryOpNode(op_tok, node))
 
-        node = res.register(self.bin_op((self.arith_expr(), (TT_EQ, TT_NE, TT_LT, TT_GT, TT_LTE, TT_GTE))))
+        node = res.register(self.bin_op(self.arith_expr, (TT_EQ, TT_NE, TT_LT, TT_GT, TT_LTE, TT_GTE)))
         if res.error:
             return res.failure(InvalidSyntaxError(self.current_tok.pos_start, self.current_tok.pos_end, "Expected int, '+', '-', '(' or 'NOT'"))
 
@@ -411,7 +410,8 @@ class Parser:
             res.register_advancement()
             self.advance()
             right = res.register(func_b())
-            if res.error: return res
+            if res.error:
+                return res
             left = BinOpNode(left, op_tok, right)
 
         return res.success(left)
