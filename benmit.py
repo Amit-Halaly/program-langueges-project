@@ -108,6 +108,7 @@ TT_COMMA = 'COMMA'
 TT_ARROW = 'ARROW'
 TT_KEYWORD = 'KEYWORD'
 TT_STR = 'STR'
+TT_COLON = 'COLON'
 
 
 KEYWORDS = ['AND', 'OR', 'NOT', 'if', 'else', 'elif', 'then', 'func', 'lambda']
@@ -189,6 +190,9 @@ class Lexer:
                 tokens.append(self.make_greater_than())
             elif self.current_char == ',':
                 tokens.append(Token(TT_COMMA, pos_start=self.pos))
+                self.advance()
+            elif self.current_char == ':':
+                tokens.append(Token(TT_COLON, pos_start=self.pos))
                 self.advance()
             elif self.current_char == '=':
                 tok, error = self.make_equals()
@@ -597,8 +601,8 @@ class Parser:
         res.register_advancement()
         self.advance()
 
-        if self.current_tok.type != TT_ARROW:
-            return res.failure(InvalidSyntaxError(self.current_tok.pos_start, self.current_tok.pos_end, f"Expected '->'"))
+        if self.current_tok.type != TT_COLON:
+            return res.failure(InvalidSyntaxError(self.current_tok.pos_start, self.current_tok.pos_end, f"Expected ':'"))
 
         res.register_advancement()
         self.advance()
