@@ -108,7 +108,7 @@ TT_COMMA = 'COMMA'
 TT_ARROW = 'ARROW'
 TT_KEYWORD = 'KEYWORD'
 TT_STR = 'STR'
-TT_LAMBDA = 'LAMBDA'
+
 
 KEYWORDS = ['AND', 'OR', 'NOT', 'if', 'else', 'elif', 'then', 'func', 'lambda']
 
@@ -195,6 +195,7 @@ class Lexer:
                 if error:
                     return [], error
                 tokens.append(tok)
+
             else:
                 pos_start = self.pos.copy()
                 char = self.current_char
@@ -357,6 +358,22 @@ class FuncDefNode:
         self.pos_end = self.body_node.pos_end
 
 
+class LambdaDefNode:
+    def __init__(self, var_name_tok, arg_name_toks, body_node):
+        self.var_name_tok = var_name_tok
+        self.arg_name_toks = arg_name_toks
+        self.body_node = body_node
+
+        if self.var_name_tok:
+            self.pos_start = self.var_name_tok.pos_start
+        elif len(self.arg_name_toks) > 0:
+            self.pos_start = self.arg_name_toks[0].pos_start
+        else:
+            self.pos_start = self.body_node.pos_start
+
+        self.pos_end = self.body_node.pos_end
+
+
 class CallNode:
     def __init__(self, node_to_call, arg_nodes):
         self.node_to_call = node_to_call
@@ -474,7 +491,7 @@ class Parser:
         res = ParseResult()
 
         if not self.current_tok.matches(TT_KEYWORD, 'func'):
-            return res.failure(InvalidSyntaxError(self.current_tok.pos_start, self.current_tok.pos_end, f"Expected 'func'"))
+            return res.failure(InvalidSyntaxError(self.current_tok.pos_start, self.current_tok.pos_end, f"Expected 'func' or lambda"))
 
         res.register_advancement()
         self.advance()
@@ -531,6 +548,66 @@ class Parser:
 
         return res.success(FuncDefNode(var_name_tok, arg_name_toks, node_to_return))
 
+    def lambda_def(self):
+        res = ParseResult()
+        if not self.current_tok.matches(TT_KEYWORD, 'lambda'):
+            return res.failure(InvalidSyntaxError(self.current_tok.pos_start, self.current_tok.pos_end, f"Expected lambda"))
+
+        res.register_advancement()
+        self.advance()
+
+        if self.current_tok.type == TT_STR:
+            var_name_tok = self.current_tok
+            res.register_advancement()
+            self.advance()
+            if self.current_tok.type != TT_LPAREN:
+                return res.failure(InvalidSyntaxError(self.current_tok.pos_start, self.current_tok.pos_end, f"Expected '('"))
+        else:
+            var_name_tok = None
+            if self.current_tok.type != TT_LPAREN:
+                return res.failure(InvalidSyntaxError(
+                    self.current_tok.pos_start, self.current_tok.pos_end, f"Expected identifier or '('"))
+
+        res.register_advancement()
+        self.advance()
+        arg_name_toks = []
+
+        if self.current_tok.type == TT_STR:
+            arg_name_toks.append(self.current_tok)
+            res.register_advancement()
+            self.advance()
+
+            while self.current_tok.type == TT_COMMA:
+                res.register_advancement()
+                self.advance()
+
+                if self.current_tok.type != TT_STR:
+                    return res.failure(InvalidSyntaxError(self.current_tok.pos_start, self.current_tok.pos_end, f"Expected identifier"))
+
+                arg_name_toks.append(self.current_tok)
+                res.register_advancement()
+                self.advance()
+
+            if self.current_tok.type != TT_RPAREN:
+                return res.failure(InvalidSyntaxError(self.current_tok.pos_start, self.current_tok.pos_end, f"Expected ',' or ')'"))
+        else:
+            if self.current_tok.type != TT_RPAREN:
+                return res.failure(InvalidSyntaxError(self.current_tok.pos_start, self.current_tok.pos_end, f"Expected identifier or ')'"))
+
+        res.register_advancement()
+        self.advance()
+
+        if self.current_tok.type != TT_ARROW:
+            return res.failure(InvalidSyntaxError(self.current_tok.pos_start, self.current_tok.pos_end, f"Expected '->'"))
+
+        res.register_advancement()
+        self.advance()
+        node_to_return = res.register(self.expr())
+        if res.error:
+            return res
+
+        return res.success(LambdaDefNode(var_name_tok, arg_name_toks, node_to_return))
+
     def atom(self):
         res = ParseResult()
         tok = self.current_tok
@@ -574,8 +651,14 @@ class Parser:
             if res.error:
                 return res
             return res.success(func_def)
+        elif tok.matches(TT_KEYWORD, 'lambda'):
+            func_def = res.register(self.lambda_def())
+            if res.error:
+                return res
+            return res.success(func_def)
 
-        return res.failure(InvalidSyntaxError(tok.pos_start, tok.pos_end, "Expected int,'if', 'func', '+', '-', '('"))
+
+        return res.failure(InvalidSyntaxError(tok.pos_start, tok.pos_end, "Expected int,'if','lambda', 'func', '+', '-', '('"))
 
     def call(self):
         res = ParseResult()
@@ -914,6 +997,46 @@ class Function(Value):
         return f"<function {self.name}>"
 
 
+class Lambda(Value):
+    def __init__(self, name, body_node, arg_names):
+        super().__init__()
+        self.name = name or "<anonymous>"
+        self.body_node = body_node
+        self.arg_names = arg_names
+
+    def execute(self, args):
+        res = RTResult()
+        interpreter = Interpreter()
+        new_context = Context(self.name, self.context, self.pos_start)
+        new_context.symbol_table = SymbolTable(new_context.parent.symbol_table)
+
+        if len(args) > len(self.arg_names):
+            return res.failure(RTError(self.pos_start, self.pos_end, f"{len(args) - len(self.arg_names)} too many args passed into '{self.name}'", self.context))
+
+        if len(args) < len(self.arg_names):
+            return res.failure(RTError(self.pos_start, self.pos_end, f"{len(self.arg_names) - len(args)} too few args passed into '{self.name}'", self.context))
+
+        for i in range(len(args)):
+            arg_name = self.arg_names[i]
+            arg_value = args[i]
+            arg_value.set_context(new_context)
+            new_context.symbol_table.set(arg_name, arg_value)
+
+        value = res.register(interpreter.visit(self.body_node, new_context))
+        if res.error:
+            return res
+        return res.success(value)
+
+    def copy(self):
+        copy = Function(self.name, self.body_node, self.arg_names)
+        copy.set_context(self.context)
+        copy.set_pos(self.pos_start, self.pos_end)
+        return copy
+
+    def __repr__(self):
+        return f"<lambda {self.name}>"
+
+
 # CONTEXT #########
 class Context:
     def __init__(self, display_name, parent=None, parent_entry_pos=None):
@@ -1076,6 +1199,20 @@ class Interpreter:
             context.symbol_table.set(func_name, func_value)
 
         return res.success(func_value)
+
+    def visit_LambdaDefNode(self, node, context):
+        res = RTResult()
+
+        lambda_name = node.var_name_tok.value if node.var_name_tok else None
+        body_node = node.body_node
+        arg_names = [arg_name.value for arg_name in node.arg_name_toks]
+        lambda_value = Lambda(lambda_name, body_node, arg_names).set_context(context).set_pos(node.pos_start,
+                                                                                            node.pos_end)
+
+        if node.var_name_tok:
+            context.symbol_table.set(lambda_name, lambda_value)
+
+        return res.success(lambda_value)
 
     def visit_CallNode(self, node, context):
         res = RTResult()
