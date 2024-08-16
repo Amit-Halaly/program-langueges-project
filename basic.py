@@ -108,8 +108,9 @@ TT_COMMA = 'COMMA'
 TT_ARROW = 'ARROW'
 TT_KEYWORD = 'KEYWORD'
 TT_STR = 'STR'
+TT_LAMBDA = 'LAMBDA'
 
-KEYWORDS = ['AND', 'OR', 'NOT', 'if', 'else', 'elif', 'then', 'func']
+KEYWORDS = ['AND', 'OR', 'NOT', 'if', 'else', 'elif', 'then', 'func', 'lambda']
 
 
 class Token:
@@ -156,7 +157,7 @@ class Lexer:
             elif self.current_char in DIGITS:
                 tokens.append(self.make_number())
             elif self.current_char in LETTERS:
-                tokens.append(self.make_bool())
+                tokens.append(self.make_string())
             elif self.current_char == '+':
                 tokens.append(Token(TT_PLUS, pos_start=self.pos))
                 self.advance()
@@ -203,7 +204,7 @@ class Lexer:
         tokens.append(Token(TT_EOF, pos_start=self.pos))
         return tokens, None
 
-    def make_bool(self):
+    def make_string(self):
         str_bool = ''
         pos_start = self.pos.copy()
 
