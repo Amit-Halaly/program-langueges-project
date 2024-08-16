@@ -10,7 +10,7 @@ BOOLEAN: Represents truth values True and False.
 Operations:
 
 # Arithmetic Operations (for INTEGERs):
-Addition (+)
+Addition (+) \n
 Subtraction (-)
 Multiplication (*)
 Division (/)
