@@ -18,7 +18,7 @@ Division (/)\
 Modulo (%)
 
 # Boolean Operations:
-Logical AND (add)\
+Logical AND (and)\
 Logical OR (or)\
 Logical NOT (!)
 
