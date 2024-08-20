@@ -22,3 +22,6 @@ if-expr : KEYWORD:if expr KEYWORD:then
 func-def    : KEYWORD: func IDENTIFIER?
               LPAREN (IDENTIFIER (COMMA IDENTIFIER)*)? RPAREN
               ARROW expr
+             |(NEWLINE statements KEYWORD:end)
+
+statements  : NEWLINE* expr (NEWLINE+ expr)* NEWLINE*
