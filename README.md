@@ -18,8 +18,8 @@ Division (/)\
 Modulo (%)
 
 # Boolean Operations:
-Logical AND (&&)\
-Logical OR (||)\
+Logical AND (and)\
+Logical OR (or)\
 Logical NOT (!)
 
 # Comparison Operations:
