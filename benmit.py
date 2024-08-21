@@ -158,6 +158,8 @@ class Lexer:
         while self.current_char is not None:
             if self.current_char in ' \t':
                 self.advance()
+            elif self.current_char == '#':
+                self.skip_comment()
             elif self.current_char in ';\n':
                 tokens.append(Token(TT_NEWLINE, pos_start=self.pos))
                 self.advance()
@@ -294,6 +296,14 @@ class Lexer:
             tok_type = TT_GTE
 
         return Token(tok_type, pos_start=pos_start, pos_end=self.pos)
+
+    def skip_comment(self):
+        self.advance()
+
+        while self.current_char != '\n':
+            self.advance()
+
+        self.advance()
 
 
 # NODES
@@ -1099,6 +1109,7 @@ class BaseFunction(Value):
 
         return res.success(None)
 
+
     def populate_args(self, arg_names, args, exec_ctx):
         for i in range(len(args)):
             arg_name = arg_names[i]
@@ -1254,7 +1265,24 @@ class BuiltInFunction(BaseFunction):
         return RTResult().success(Number.true if is_number else Number.false)
     execute_is_function.arg_names = ["value"]
 
+    def execute_run(self, exec_ctx):
+        fn = exec_ctx.symbol_table.get("fn")
+        fn = fn.value
 
+        try:
+            with open(fn, "r") as f:
+                script = f.read()
+        except Exception as e:
+            return RTResult().failure(RTError(self.pos_start, self.pos_end, f"Failed to load script \"{fn}\"\n" + str(e), exec_ctx))
+
+        _, error = run(fn, script)
+
+        if error:
+            return RTResult().failure(RTError(self.pos_start, self.pos_end, f"Failed to finish executing script \"{fn}\"\n" + error.as_string(), exec_ctx))
+
+        return RTResult().success(Number.null)
+
+    execute_run.arg_names = ["fn"]
 
 
 BuiltInFunction.print = BuiltInFunction("print")
@@ -1263,6 +1291,7 @@ BuiltInFunction.input_int = BuiltInFunction("input_int")
 BuiltInFunction.clear = BuiltInFunction("clear")
 BuiltInFunction.is_number = BuiltInFunction("is_number")
 BuiltInFunction.is_function = BuiltInFunction("is_function")
+BuiltInFunction.run = BuiltInFunction("run")
 
 
 # CONTEXT #########
@@ -1345,6 +1374,12 @@ class Interpreter:
         left = res.register(self.visit(node.left_node, context))
         if res.should_return():
             return res
+        if node.op_tok.matches(TT_KEYWORD, 'or'):
+            if left.value == 1:
+                return res.success(left)
+        elif node.op_tok.matches(TT_KEYWORD, 'and'):
+            if left.value == 0:
+                return res.success(left)
         right = res.register(self.visit(node.right_node, context))
         if res.should_return():
             return res
@@ -1372,12 +1407,8 @@ class Interpreter:
         elif node.op_tok.type == TT_GTE:
             result, error = left.get_comparison_gte(right)
         elif node.op_tok.matches(TT_KEYWORD, 'and'):
-            if left.value == 'F':
-                return res.success(left)
             result, error = left.anded_by(right)
         elif node.op_tok.matches(TT_KEYWORD, 'or'):
-            if left.value == 'T':
-                return res.success(left)
             result, error = left.ored_by(right)
 
         if error:
@@ -1461,6 +1492,7 @@ class Interpreter:
 
         return res.success_return(value)
 
+
 # RUN ######
 global_symbol_table = SymbolTable()
 global_symbol_table.set("NULL", Number.null)
@@ -1474,6 +1506,7 @@ global_symbol_table.set("clear", BuiltInFunction.clear)
 global_symbol_table.set("cls", BuiltInFunction.clear)
 global_symbol_table.set("isNum", BuiltInFunction.is_number)
 global_symbol_table.set("isFunc", BuiltInFunction.is_function)
+global_symbol_table.set("run", BuiltInFunction.run)
 
 
 def run(fn, text):
