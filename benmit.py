@@ -255,8 +255,8 @@ class Lexer:
 
         if str_bool == 'F' or str_bool == 'T':
             tok_type = TT_BOOL
-
-        tok_type = TT_KEYWORD if str_bool in KEYWORDS else TT_STR
+        else:
+            tok_type = TT_KEYWORD if str_bool in KEYWORDS else TT_STR
 
         return Token(tok_type, str_bool, pos_start, self.pos)
 
@@ -1045,13 +1045,13 @@ class Number(Value):
 
     def anded_by(self, other):
         if isinstance(other, Number):
-            return Number(int(self.value and other.value)).set_context(self.context), None
+            return Number(True if (self.value and other.value) == 1 else False).set_context(self.context), None
         else:
             return None, Value.illegal_operation(self, other)
 
     def ored_by(self, other):
         if isinstance(other, Number):
-            return Number(int(self.value or other.value)).set_context(self.context), None
+            return Number(True if (self.value or other.value) == 1 else False).set_context(self.context), None
         else:
             return None, Value.illegal_operation(self, other)
 
@@ -1127,11 +1127,7 @@ class List(Value):
                 new_list.elements.pop(other.value)
                 return new_list, None
             except:
-                return None, RTError(
-                    other.pos_start, other.pos_end,
-                    'Element at this index could not be removed from list because index is out of bounds',
-                    self.context
-                )
+                return None, RTError(other.pos_start, other.pos_end, 'Element at this index could not be removed from list because index is out of bounds', self.context)
         else:
             return None, Value.illegal_operation(self, other)
 
@@ -1185,7 +1181,6 @@ class BaseFunction(Value):
             return res.failure(RTError(self.pos_start, self.pos_end, f"{len(arg_names) - len(args)} too few args passed into {self}", self.context))
 
         return res.success(None)
-
 
     def populate_args(self, arg_names, args, exec_ctx):
         for i in range(len(args)):
@@ -1251,10 +1246,12 @@ class Lambda(Value):
         method = getattr(self, method_name, self.no_visit_method)
 
         res.register(self.check_and_populate_args(method.arg_names, args, exec_ctx))
-        if res.should_return(): return res
+        if res.should_return():
+            return res
 
         return_value = res.register(method(exec_ctx))
-        if res.should_return(): return res
+        if res.should_return():
+            return res
         return res.success(return_value)
 
     def copy(self):
@@ -1580,9 +1577,9 @@ class Interpreter:
 
 # RUN ######
 global_symbol_table = SymbolTable()
-global_symbol_table.set("NULL", Number.null)
-global_symbol_table.set("FALSE", Number.false)
-global_symbol_table.set("TRUE", Number.true)
+global_symbol_table.set("null", Number.null)
+global_symbol_table.set("F", Number.false)
+global_symbol_table.set("T", Number.true)
 global_symbol_table.set("PI", Number.math_PI)
 global_symbol_table.set("print", BuiltInFunction.print)
 global_symbol_table.set("INPUT", BuiltInFunction.input)
