@@ -1346,20 +1346,23 @@ class BuiltInFunction(BaseFunction):
         fn = exec_ctx.symbol_table.get("fn")
         if not isinstance(fn, String):
             return RTResult().failure(RTError(self.pos_start, self.pos_end, "Second argument must be string", exec_ctx))
-        fn = fn.value
+        if fn.value.endswith('.lambda'):
+            fn = fn.value
 
-        try:
-            with open(fn, "r") as f:
-                script = f.read()
-        except Exception as e:
-            return RTResult().failure(RTError(self.pos_start, self.pos_end, f"Failed to load script \"{fn}\"\n" + str(e), exec_ctx))
+            try:
+                with open(fn, "r") as f:
+                    script = f.read()
+            except Exception as e:
+                return RTResult().failure(RTError(self.pos_start, self.pos_end, f"Failed to load script \"{fn}\"\n" + str(e), exec_ctx))
 
-        _, error = run(fn, script)
+            _, error = run(fn, script)
 
-        if error:
-            return RTResult().failure(RTError(self.pos_start, self.pos_end, f"Failed to finish executing script \"{fn}\"\n" + error.as_string(), exec_ctx))
+            if error:
+                return RTResult().failure(RTError(self.pos_start, self.pos_end, f"Failed to finish executing script \"{fn}\"\n" + error.as_string(), exec_ctx))
 
-        return RTResult().success(Number.null)
+            return RTResult().success(Number.null)
+
+        return RTResult().failure(RTError(self.pos_start, self.pos_end, "file name needs to end with '.lambda'", exec_ctx))
 
     execute_run.arg_names = ["fn"]
 
