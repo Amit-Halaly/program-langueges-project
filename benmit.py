@@ -91,6 +91,7 @@ class Position:
 
 
 TT_INT = 'INT'
+TT_STRING = 'STRING'
 TT_PLUS = 'PLUS'
 TT_BOOL = "bool"
 TT_MINUS = 'MINUS'
@@ -166,6 +167,8 @@ class Lexer:
             elif self.current_char in DIGITS:
                 tokens.append(self.make_number())
             elif self.current_char in LETTERS:
+                tokens.append(self.make_bool_string())
+            elif self.current_char == '"':
                 tokens.append(self.make_string())
             elif self.current_char == '+':
                 tokens.append(Token(TT_PLUS, pos_start=self.pos))
@@ -218,6 +221,31 @@ class Lexer:
         return tokens, None
 
     def make_string(self):
+        string = ''
+        pos_start = self.pos.copy()
+        escape_character = False
+        self.advance()
+
+        escape_characters = {
+            'n': '\n',
+            't': '\t'
+        }
+
+        while self.current_char is not None and (self.current_char != '"' or escape_character):
+            if escape_character:
+                string += escape_characters.get(self.current_char, self.current_char)
+            else:
+                if self.current_char == '\\':
+                    escape_character = True
+                else:
+                    string += self.current_char
+            self.advance()
+            escape_character = False
+
+        self.advance()
+        return Token(TT_STRING, string, pos_start, self.pos)
+
+    def make_bool_string(self):
         str_bool = ''
         pos_start = self.pos.copy()
 
@@ -317,6 +345,16 @@ class NumberNode:
         return f'{self.tok}'
 
 
+class StringNode:
+    def __init__(self, tok):
+        self.tok = tok
+        self.pos_start = self.tok.pos_start
+        self.pos_end = self.tok.pos_end
+
+    def __repr__(self):
+        return f'{self.tok}'
+
+
 class VarAccessNode:
     def __init__(self, var_name_tok):
         self.var_name_tok = var_name_tok
@@ -359,6 +397,7 @@ class UnaryOpNode:
 
     def __repr__(self):
         return f'({self.op_tok}, {self.node})'
+
 
 class ReturnNode:
   def __init__(self, node_to_return, pos_start, pos_end):
@@ -678,6 +717,11 @@ class Parser:
             res.register_advancement()
             self.advance()
             return res.success(NumberNode(tok))
+
+        elif tok.type == TT_STRING:
+            res.register_advancement()
+            self.advance()
+            return res.success(StringNode(tok))
 
         elif tok.type == TT_STR:
             res.register_advancement()
@@ -1033,6 +1077,39 @@ Number.true = Number(1)
 Number.math_PI = Number(math.pi)
 
 
+class String(Value):
+    def __init__(self, value):
+        super().__init__()
+        self.value = value
+
+    def added_to(self, other):
+        if isinstance(other, String):
+            return String(self.value + other.value).set_context(self.context), None
+        else:
+            return None, Value.illegal_operation(self, other)
+
+    def multed_by(self, other):
+        if isinstance(other, Number):
+            return String(self.value * other.value).set_context(self.context), None
+        else:
+            return None, Value.illegal_operation(self, other)
+
+    def is_true(self):
+        return len(self.value) > 0
+
+    def copy(self):
+        copy = String(self.value)
+        copy.set_pos(self.pos_start, self.pos_end)
+        copy.set_context(self.context)
+        return copy
+
+    def __str__(self):
+        return self.value
+
+    def __repr__(self):
+        return f'"{self.value}"'
+
+
 class List(Value):
     def __init__(self, elements):
         super().__init__()
@@ -1267,6 +1344,8 @@ class BuiltInFunction(BaseFunction):
 
     def execute_run(self, exec_ctx):
         fn = exec_ctx.symbol_table.get("fn")
+        if not isinstance(fn, String):
+            return RTResult().failure(RTError(self.pos_start, self.pos_end, "Second argument must be string", exec_ctx))
         fn = fn.value
 
         try:
@@ -1433,6 +1512,9 @@ class Interpreter:
             return res.failure(error)
         else:
             return res.success(number.set_pos(node.pos_start, node.pos_end))
+
+    def visit_StringNode(self, node, context):
+        return RTResult().success(String(node.tok.value).set_context(context).set_pos(node.pos_start, node.pos_end))
 
     def visit_FuncDefNode(self, node, context):
         res = RTResult()
