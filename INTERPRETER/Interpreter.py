@@ -150,18 +150,18 @@ class Number(Value):
 
     def anded_by(self, other):
         if isinstance(other, Number):
-            return Number(True if (self.value and other.value) == 1 else False).set_context(self.context), None
+            return Number(int(self.value and other.value)).set_context(self.context), None
         else:
             return None, Value.illegal_operation(self, other)
 
     def ored_by(self, other):
         if isinstance(other, Number):
-            return Number(True if (self.value or other.value) == 1 else False).set_context(self.context), None
+            return Number(int(self.value or other.value)).set_context(self.context), None
         else:
             return None, Value.illegal_operation(self, other)
 
     def notted(self):
-        return Number(True if self.value == 0 else False).set_context(self.context), None
+        return Number(1 if self.value == 0 else 0).set_context(self.context), None
 
     def copy(self):
         copy = Number(self.value)
@@ -336,31 +336,31 @@ class Function(BaseFunction):
         return f"<function {self.name}>"
 
 
-class Lambda(Value):
-    def __init__(self, name, body_node, arg_names):
-        super().__init__()
-        self.name = name or "<anonymous>"
+class Lambda(BaseFunction):
+    def __init__(self, name, body_node, arg_names, should_auto_return):
+        super().__init__(name)
         self.body_node = body_node
         self.arg_names = arg_names
+        self.should_auto_return = should_auto_return
 
     def execute(self, args):
         res = RTResult()
+        interpreter = Interpreter()
         exec_ctx = self.generate_new_context()
 
-        method_name = f'execute_{self.name}'
-        method = getattr(self, method_name, self.no_visit_method)
-
-        res.register(self.check_and_populate_args(method.arg_names, args, exec_ctx))
+        res.register(self.check_and_populate_args(self.arg_names, args, exec_ctx))
         if res.should_return():
             return res
 
-        return_value = res.register(method(exec_ctx))
-        if res.should_return():
+        value = res.register(interpreter.visit(self.body_node, exec_ctx))
+        if res.should_return() and res.func_return_value is None:
             return res
-        return res.success(return_value)
+
+        ret_value = (value if self.should_auto_return else None) or res.func_return_value or Number.null
+        return res.success(ret_value)
 
     def copy(self):
-        copy = Function(self.name, self.body_node, self.arg_names)
+        copy = Function(self.name, self.body_node, self.arg_names, self.should_auto_return)
         copy.set_context(self.context)
         copy.set_pos(self.pos_start, self.pos_end)
         return copy
@@ -611,7 +611,7 @@ class Interpreter:
         lambda_name = node.var_name_tok.value if node.var_name_tok else None
         body_node = node.body_node
         arg_names = [arg_name.value for arg_name in node.arg_name_toks]
-        lambda_value = Lambda(lambda_name, body_node, arg_names).set_context(context).set_pos(node.pos_start, node.pos_end)
+        lambda_value = Lambda(lambda_name, body_node, arg_names, node.should_auto_return).set_context(context).set_pos(node.pos_start, node.pos_end)
 
         if node.var_name_tok:
             context.symbol_table.set(lambda_name, lambda_value)
@@ -716,8 +716,8 @@ class SymbolTable:
 
 global_symbol_table = SymbolTable()
 global_symbol_table.set("null", Number.null)
-global_symbol_table.set("F", Number.false)
-global_symbol_table.set("T", Number.true)
+global_symbol_table.set("false", Number.false)
+global_symbol_table.set("true", Number.true)
 global_symbol_table.set("PI", Number.math_PI)
 global_symbol_table.set("print", BuiltInFunction.print)
 global_symbol_table.set("INPUT", BuiltInFunction.input)
@@ -728,4 +728,25 @@ global_symbol_table.set("isNum", BuiltInFunction.is_number)
 global_symbol_table.set("isFunc", BuiltInFunction.is_function)
 global_symbol_table.set("run", BuiltInFunction.run)
 
+
+def run(fn, text):
+    # Generate tokens
+    lexer = Lexer(fn, text)
+    tokens, error = lexer.make_tokens()
+    if error:
+        return None, error
+
+    # Generate AST
+    parser = Parser(tokens)
+    ast = parser.parse()
+    if ast.error:
+        return None, ast.error
+
+    # Run program
+    interpreter = Interpreter()
+    context = Context('<program>')
+    context.symbol_table = global_symbol_table
+    result = interpreter.visit(ast.node, context)
+
+    return result.value, result.error
 

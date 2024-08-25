@@ -92,10 +92,11 @@ class FuncDefNode:
 
 
 class LambdaDefNode:
-    def __init__(self, var_name_tok, arg_name_toks, body_node):
+    def __init__(self, var_name_tok, arg_name_toks, body_node, should_auto_return):
         self.var_name_tok = var_name_tok
         self.arg_name_toks = arg_name_toks
         self.body_node = body_node
+        self.should_auto_return = should_auto_return
 
         if self.var_name_tok:
             self.pos_start = self.var_name_tok.pos_start
@@ -374,7 +375,7 @@ class Parser:
         if res.error:
             return res
 
-        return res.success(LambdaDefNode(var_name_tok, arg_name_toks, node_to_return))
+        return res.success(LambdaDefNode(var_name_tok, arg_name_toks, node_to_return, True))
 
     def atom(self):
         res = ParseResult()
@@ -419,10 +420,10 @@ class Parser:
                 return res
             return res.success(func_def)
         elif tok.matches(TT_KEYWORD, 'lambda'):
-            func_def = res.register(self.lambda_def())
+            lambda_def = res.register(self.lambda_def())
             if res.error:
                 return res
-            return res.success(func_def)
+            return res.success(lambda_def)
 
         return res.failure(InvalidSyntaxError(tok.pos_start, tok.pos_end, "Expected int,'lambda', 'func', '+', '-', '('"))
 
@@ -443,7 +444,7 @@ class Parser:
             else:
                 arg_nodes.append(res.register(self.expr()))
                 if res.error:
-                    return res.failure(InvalidSyntaxError(self.current_tok.pos_start, self.current_tok.pos_end, "Expected ')', 'if','func', int, identifier, '+', '-', '(' or 'NOT'"))
+                    return res.failure(InvalidSyntaxError(self.current_tok.pos_start, self.current_tok.pos_end, "Expected ')', 'if','func', int, identifier, '+', '-', '(' or 'not'"))
 
                 while self.current_tok.type == TT_COMMA:
                     res.register_advancement()

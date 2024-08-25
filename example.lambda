@@ -1,31 +1,33 @@
 func add(a,b) -> a+b;
 
-func mul(a,b) -> a*b;
-
-func equel(a,b) -> (a==b);
-
-func recursion(n) ->(n == 0) or (n * recursion(n - 1));
-
-
-#lambda x :
-
 #Function test of add
 print(add(4,10));
 
+#test Function composition
+print(add(add(10,11),12));
+
+func mul(a,b) -> a*b;
+
 #Function test of mul
 print(mul(4,10));
+
+func equel(a,b) -> (a==b);
 
 #Function test of equel
 print(equel(2,2));
 print(equel(4,8));
 
-#test Function composition
-print(add(add(10,11),12));
-
+func recursion(n) ->(n == 0) or (n * recursion(n - 1));
 
 #Recursion test
 print(recursion(10));
 print(recursion(5));
+
+lambda div(x,y) : x/y;
+
+#lambda test of div
+print(div(6,2))
+
 
 #operation test
 
@@ -34,7 +36,7 @@ print(2 + 4);
 print(2 - 4);
 print(2 * 4);
 print(10 / 2);
-print(8 % 4);
+print(8 % 7);
 
 #logical operation
 print(2 == 4);
@@ -45,7 +47,7 @@ print(2 >= 4);
 print(2 <= 3);
 
 #conditional operation(False is 'F', True is 'T')
-print(F and T);
-print(T or F);
-print(not T);
+print(true and false);
+print(false or true);
+print(not true);
 

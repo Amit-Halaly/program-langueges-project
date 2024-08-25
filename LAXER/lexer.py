@@ -169,7 +169,7 @@ class Lexer:
             str_bool += self.current_char
             self.advance()
 
-        if str_bool == 'F' or str_bool == 'T':
+        if str_bool == 'false' or str_bool == 'true':
             tok_type = TT_BOOL
         else:
             tok_type = TT_KEYWORD if str_bool in KEYWORDS else TT_STR
