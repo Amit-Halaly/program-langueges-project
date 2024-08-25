@@ -36,8 +36,9 @@ LETTERS = string.ascii_letters
 
 
 class Token:
-
+    # Initialize a new Token object.
     def __init__(self, type_, value=None, pos_start=None, pos_end=None):
+
         self.type = type_
         self.value = value
 
@@ -49,15 +50,18 @@ class Token:
         if pos_end:
             self.pos_end = pos_end
 
+    # Check if this token matches the given type and value.
     def matches(self, type_, value):
         return self.type == type_ and self.value == value
 
+    # Return a string representation of the token.
     def __repr__(self):
         if self.value: return f'{self.type}:{self.value}'
         return f'{self.type}'
 
 
 class Lexer:
+    # Initialize the Lexer with the source filename and text.
     def __init__(self, fn, text):
         self.fn = fn
         self.text = text
@@ -66,9 +70,11 @@ class Lexer:
         self.advance()
 
     def advance(self):
+        # Advance the current character position in the source text.
         self.pos.advance(self.current_char)
         self.current_char = self.text[self.pos.idx] if self.pos.idx < len(self.text) else None
 
+    # Tokenize the input text into a list of tokens.
     def make_tokens(self):
         tokens = []
 
