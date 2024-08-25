@@ -4,8 +4,8 @@
 BENMIT is an interpreter for a minimalist functional programming language designed to emphasize pure functions and lambda expressions.
 The language features immutability and eliminates variable assignments, promoting a purely functional approach to problem-solving.
 # Create by
-- [@Ben-Aharoni](https://github.com/Ben-Aharoni)
-- [@Amit-Halaly](https://github.com/Amit-Halaly)
+- [@Ben-Aharoni](https://github.com/Ben-Aharoni)\
+- [@Amit-Halaly](https://github.com/Amit-Halaly)\
 This project was inspired by [@CodePulse's](https://www.youtube.com/@CodePulse) Series: Make YOUR OWN Programming Language.
   ### Installation
 
