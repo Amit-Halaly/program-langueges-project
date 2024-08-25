@@ -4,8 +4,8 @@
 BENMIT is an interpreter for a minimalist functional programming language designed to emphasize pure functions and lambda expressions.
 The language features immutability and eliminates variable assignments, promoting a purely functional approach to problem-solving.
 # Create by
-- @ Ben-Aharoni
-- @ Amit-Halaly
+- @"Ben-Aharoni"
+- @"Amit-Halaly"
 
   ### Installation
 
@@ -128,7 +128,7 @@ That said, We  want every line to end in ; .
 - Boolean expressions can be combined using `and` (logical AND) and `or` (logical OR). Because the language doesn't support if statements, we use of short-circuit evaluation to make conditional statements to still be possible. like in the following code:
 ```
 func fact(n);
-    (n == 0) || (n * fact(n - 1));
+    (n == 0) or (n * fact(n - 1));
 ```
 
 4. Function Definitions with Optional Blocks or Lite Expressions
