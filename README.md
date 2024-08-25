@@ -6,7 +6,7 @@ The language features immutability and eliminates variable assignments, promotin
 # Create by
 - [@Ben-Aharoni](https://github.com/Ben-Aharoni)
 - [@Amit-Halaly](https://github.com/Amit-Halaly)\
-<!-- This project was inspired by [@CodePulse's](https://www.youtube.com/@CodePulse) Series: Make YOUR OWN Programming Language.  -->
+``This project was inspired by [@CodePulse's](https://www.youtube.com/@CodePulse) Series: Make YOUR OWN Programming Language.``
   ### Installation
 
 1. Clone the repository:
