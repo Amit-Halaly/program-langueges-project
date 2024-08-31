@@ -23,11 +23,11 @@ func recursion(n) ->(n == 0) or (n * recursion(n - 1));
 print(recursion(10));
 print(recursion(5));
 
-lambda div(x,y) : x/y;
-lambda ladd(x,y) : x + y;
+#lambda test div
+print((lambda(x,y) : x / y) (10,5))
 
 #lambda in lambda test
-print(ladd(div(6,2),6))
+print((lambda (x,y) : x * y) (4, (lambda (x,y) : x + y) (3,2)))
 
 
 #operation test
